@@ -97,14 +97,22 @@ def parse_args():
                         help='Root of tree to which files are moved/copied. '
                              'If omitted, then files are renamed in place as '
                              'necessary and not copied/moved to a new location')
-    parser.add_argument('-l', '--len', type=int, default=default_maxpath,
-                        help='Truncate generated pathnames that exceed LEN '
-                             'characters (default %d)' % default_maxpath)
+    parser.add_argument('-l', '--len', type=int, default=default_maxpath, metavar='max',
+                        help="Truncate generated pathnames that exceed 'max' "
+                             "characters (default %d)" % default_maxpath)
     parser.add_argument('-m', '--move', action='store_true',
                         help='Move files to the destination instead of copying')
     parser.add_argument('-n', '--dry-run', action='store_true',
                         help="Don't actually move/copy/rename, just show what "
                              "would be done (implies -vv)")
+    parser.add_argument('-o', '--override', action='append', nargs=2,
+                        metavar=('tag', 'value'),
+                        help="Override a tag by marking it as identical across "
+                             "an album, with the given new value. Useful for "
+                             "overriding the values which are used to create "
+                             "the path to an album's new location. Separate "
+                             "multiple values for a tag with semicolons. "
+                             'Example: -o artist "John Doe;Jane Smith"')
     parser.add_argument('-p', '--pause', action='store_true',
                         help='Pause before exiting')
     parser.add_argument('-s', '--sorted-artist', action='store_true',
@@ -128,6 +136,14 @@ def parse_args():
     if args.dry_run:
         args.verbose = 2
         print('Note: This is a dry run; no changes are being made')
+
+
+def process_tag_overrides(album):
+    # Handle the -o cmdline option, overriding the values of tags in
+    # album.identical.
+    if args.override:
+        for override in args.override:
+            album.identical[override[0]] = override[1].split(';')
 
 
 def check_tag_validity(album):
@@ -358,6 +374,7 @@ def process_album(album_path):
     if not msgs.errors:
         find_common_album_tags(album)
         find_identical_album_tags(album)
+        process_tag_overrides(album)
         check_tag_validity(album)
     if not msgs.errors:
         if args.dest:

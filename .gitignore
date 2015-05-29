@@ -2,5 +2,6 @@
 *.sln
 *.suo
 *.swp
+CheckFlacTags2.py
 __pycache__
 old
