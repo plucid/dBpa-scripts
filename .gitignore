@@ -1,0 +1,6 @@
+*.pyproj
+*.sln
+*.suo
+*.swp
+__pycache__
+old
