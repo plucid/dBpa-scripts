@@ -323,6 +323,8 @@ def remove_empty_directories(path, root):
     # parent directories, stopping at the root path.
     while not os.listdir(path) and path != root:
         try:
+            if args.verbose > 1:
+                print('rmdir %s' % path)
             os.rmdir(path)
         except Exception as e:
             print('Warning: Failed to remove empty directory %s' % path)
