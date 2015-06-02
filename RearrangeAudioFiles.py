@@ -131,7 +131,6 @@ def parse_args():
     args.source = os.path.abspath(args.source)
     if args.dest:
         args.dest = os.path.abspath(args.dest)
-        if args.source == args.dest:
             raise Error('source and destination arguments must be different')
     if args.dry_run:
         args.verbose = 2
