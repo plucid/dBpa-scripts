@@ -15,7 +15,9 @@ FLAC files are copied/moved based on the [Profile] and [Compilation] tags:
 [Profile]=Classical, [Compilation] present
     Pathname=Classical\Compilations\[Album] - [AlbumArtistTerse] ([Date])\
 [Profile]=Pop/Rock, by default
+    Pathname=[AlbumArtist]\[Album] ([Date])\
 [Profile]=Pop/Rock, with command line option -s
+    Pathname=[Album Artist Sort]\[Album] ([Date])\
 
 An error is reported for any other value of [Profile], or if any of the tags
 mentioned above aren't present and identical across all FLAC files in a
