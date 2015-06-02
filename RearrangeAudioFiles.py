@@ -15,9 +15,7 @@ FLAC files are copied/moved based on the [Profile] and [Compilation] tags:
 [Profile]=Classical, [Compilation] present
     Pathname=Classical\Compilations\[Album] - [AlbumArtistTerse] ([Date])\
 [Profile]=Pop/Rock, by default
-    Pathname=[AlbumArtist]\[Album]
 [Profile]=Pop/Rock, with command line option -s
-    Pathname=[Album Artist Sort]\[Album]
 
 An error is reported for any other value of [Profile], or if any of the tags
 mentioned above aren't present and identical across all FLAC files in a
@@ -187,6 +185,8 @@ def check_tag_validity(album):
                 test_identical(('composersort',))
     else:
         test_common(('artist',))
+        if args.dest:
+            test_identical(('date',))
         if args.sorted_artist:
             test_identical(('album artist sort',))
 
@@ -207,8 +207,8 @@ def get_new_path(album):
         dirs = [album.identical['albumartist'][0]]
     name = album.identical['album'][0]
     if album.classical:
-        name += ' - %s (%s)' % (album.identical['albumartistterse'][0],
-                                album.identical['date'][0])
+        name += ' - %s' % album.identical['albumartistterse'][0]
+    name += ' (%s)' % album.identical['date'][0]
     dirs.append(name)
     return os.path.join(args.dest, *[replace_reserved_chars(d) for d in dirs])
 
