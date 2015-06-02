@@ -351,6 +351,7 @@ def check_profile(disc):
     # Don't bother testing if the genre and profile aren't identical across tracks.
     # Sets disc.classical, so run this soon after finding identical tags.
     if 'genre' not in disc.identical or 'profile' not in disc.identical:
+        disc.classical = False
         return
     genre = flatten_tag(disc.identical['genre'])
     profile = flatten_tag(disc.identical['profile'])
