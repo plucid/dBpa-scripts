@@ -37,6 +37,9 @@ class Messages:
         self.messages.append(text)
         self.warnings += 1
 
+    def note(self, text):
+        self.messages.append(text)
+
 
 class Track(dict):
     """

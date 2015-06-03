@@ -158,7 +158,7 @@ def parse_args():
                 return [el]
 
         tags = flatten_args([_.split(',') for _ in args.tag])
-        args.tag = {_.strip() for _ in tags}
+        args.tag = {_.strip().lower() for _ in tags}
     else:
         args.tag = set()
 
@@ -182,16 +182,16 @@ def track_list(tracks, track_count):
                                     for x1, x2 in grouped])
 
 
-def output_dict_of_bad_tracks(track_dict, disc):
+def output_dict_of_bad_tracks(track_dict, disc, method=None):
     # Helper for messages which display something like:
     #   All tracks: message1
     #   Track 1: message2
     #   Tracks 4-7: message3
     # track_dict is the dictionary mapping the messages to output as the
     # key to the list of pertinent tracks as the value.
+    method = method or msgs.error
     for message, tracks in sorted(track_dict.items(), key=lambda i: i[1]):
-        msgs.error('  %s: %s' %
-                    (track_list(tracks, len(disc)), message))
+        method('  %s: %s' % (track_list(tracks, len(disc)), message))
 
 
 def check_disc_numbers(album):
@@ -706,12 +706,12 @@ def check_orchestra(disc):
 def find_selected_tags(disc):
     # Not a correctness check - display any tracks using the selected tags.
     for tag in sorted(args.tag & disc.tagset):
-        msgs.error("Tag '%s' found:" % tag)
+        msgs.note("Tag '%s' found:" % tag)
         tag_vals = defaultdict(list)
         for tracknum, track in disc.items():
             if tag in track:
                 tag_vals[flatten_tag(track[tag])].append(tracknum)
-        output_dict_of_bad_tracks(tag_vals, disc)
+        output_dict_of_bad_tracks(tag_vals, disc, msgs.note)
 
 
 def process_album(album_path):
