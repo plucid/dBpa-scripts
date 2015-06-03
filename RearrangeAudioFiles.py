@@ -1,7 +1,5 @@
 #! python3
 
-# TODO: on a -m move, remove empty directories back up to the source path.
-
 """
 Update the location and names of FLAC audio files, as well as any associated
 files in the same directory, according to the tags found in the FLAC files.
@@ -73,6 +71,7 @@ from CommonUtils import *
 from CommonUtils import uprint as print
 
 default_maxpath = 259
+default_retain_name = 10  # Min chars to retain from basename when truncating
 
 known_profiles = ('Classical', 'Pop/Rock')
 
@@ -95,8 +94,9 @@ def parse_args():
     parser.add_argument('source', help='Root of tree with files to process')
     parser.add_argument('dest', nargs='?',
                         help='Root of tree to which files are moved/copied. '
-                             'If omitted, then files are renamed in place as '
-                             'necessary and not copied/moved to a new location')
+                             'If omitted, then files and album folders are '
+                             'renamed in place as necessary and not '
+                             'copied/moved to a new location.')
     parser.add_argument('-l', '--len', type=int, default=default_maxpath, metavar='max',
                         help="Truncate generated pathnames that exceed 'max' "
                              "characters (default %d)" % default_maxpath)
@@ -122,7 +122,7 @@ def parse_args():
     parser.add_argument('-t', '--truncate-warn', action='store_false',
                         help='Disable the warning if a file needs to be truncated')
     parser.add_argument('-v', '--verbose', action='count', default=0,
-                        help="Output more info about what's being done. Repeated"
+                        help="Output more info about what's being done. Repeated "
                              "uses (-vv) will display even more info.")
     args = parser.parse_args()
     prog = parser.prog
@@ -131,7 +131,7 @@ def parse_args():
     args.source = os.path.abspath(args.source)
     if args.dest:
         args.dest = os.path.abspath(args.dest)
-        if os.path.samefile(args.source, args.dest):
+        if args.source.lower() == args.dest.lower():
             raise Error('source and destination arguments must be different')
     if args.dry_run:
         args.verbose = 2
@@ -193,26 +193,36 @@ def check_tag_validity(album):
             test_identical(('album artist sort',))
 
 
-def get_new_path(album):
-    # If moving/copying files to a new destination, determine the path to
-    # the new location for an album.
-    assert args.dest
-    if album.classical:
-        dirs = ['Classical']
-        if album.compilation:
-            dirs.append('Compilations')
+def check_new_path(album):
+    # Determine the path to the new location for an album.  If moving/copying
+    # files to a new destination, this will be under args.dest.  Otherwise,
+    # in the in-place rename usage, the album folder itself might be renamed.
+    # Issue an error if the destination already exists, unless it's the same
+    # as the source.
+    dirs = []
+    if args.dest:
+        if album.classical:
+            dirs.append('Classical')
+            if album.compilation:
+                dirs.append('Compilations')
+            else:
+                dirs.append(album.identical['composersort'][0])
+        elif args.sorted_artist:
+            dirs = [album.identical['album artist sort'][0]]
         else:
-            dirs.append(album.identical['composersort'][0])
-    elif args.sorted_artist:
-        dirs = [album.identical['album artist sort'][0]]
-    else:
-        dirs = [album.identical['albumartist'][0]]
-    name = album.identical['album'][0]
+            dirs = [album.identical['albumartist'][0]]
+    folder = album.identical['album'][0]
     if album.classical:
-        name += ' - %s' % album.identical['albumartistterse'][0]
-    name += ' (%s)' % album.identical['date'][0]
-    dirs.append(name)
-    return os.path.join(args.dest, *[replace_reserved_chars(d) for d in dirs])
+        folder += ' - %s' % album.identical['albumartistterse'][0]
+    folder += ' (%s)' % album.identical['date'][0]
+    dirs.append(folder)
+    dirs = [replace_reserved_chars(d) for d in dirs]
+    path_head = args.dest if args.dest else os.path.dirname(album.path)
+    album.new_path = os.path.join(path_head, *dirs)
+    album.new_folder = dirs[-1]
+    if album.path.lower() != album.new_path.lower():
+        if os.path.exists(album.new_path):
+            msgs.error("Destination '%s' already exists" % album.new_path)
 
 
 def get_new_audio_file_name(album, discnum, tracknum, track):
@@ -239,14 +249,13 @@ def record_file_to_process(album, old_name, new_name):
     # Record the 2-way mapping between old album file and new, after first
     # running some checks.  If the full new pathname is too long, try to
     # truncate it, with an error if that's not possible.
-    path = album.new_path if args.dest else album.path
-    new_fullpath = os.path.join(path, new_name)
+    new_fullpath = os.path.join(album.new_path, new_name)
     if len(new_fullpath) > args.len:
         base, ext = os.path.splitext(new_name)
         shrink = len(new_fullpath) - args.len + len('..')
-        if len(base) - shrink < 10:
-            # Error if truncating the name won't retain at least
-            # 10 characters from the original base filename.
+        if len(base) - shrink < default_retain_name:
+            # Error if truncating the name won't retain enough characters from
+            # the original base filename.
             msgs.error('New filename is too short to truncate to keep pathname'
                         ' in limits')
             msgs.error('  %s' % new_fullpath)
@@ -257,7 +266,7 @@ def record_file_to_process(album, old_name, new_name):
                 msgs.warn('  from: %s' % new_name)
                 msgs.warn('  to:   %s' % truncated_name)
             new_name = truncated_name
-            new_fullpath = os.path.join(path, new_name)
+            new_fullpath = os.path.join(album.new_path, new_name)
     if new_name in album.new_files:
         prev_old_name = album.new_files[new_name]
         msgs.error('Two files will be renamed to the same new name:')
@@ -358,6 +367,10 @@ def do_move_or_copy(album):
 
 def do_rename_in_place(album):
     # Perform any file renames needed when no destination is specified.
+    # Also rename the album folder itself if necessary.
+    rename_folder = album.new_folder != os.path.basename(album.path)
+    if args.verbose > 1 and rename_folder:
+        print('Rename to: %s' % album.new_path)
     found = False
     for old, new in album.old_files.items():
         if old != new:
@@ -368,8 +381,10 @@ def do_rename_in_place(album):
                 old_path = os.path.join(album.path, old)
                 new_path = os.path.join(album.path, new)
                 os.rename(old_path, new_path)
+    if not args.dry_run and rename_folder:
+        os.rename(album.path, album.new_path)
     if not found and args.verbose > 1:
-        print('No files renamed')
+        print('No album files renamed')
 
 
 def process_album(album_path):
@@ -381,8 +396,7 @@ def process_album(album_path):
         process_tag_overrides(album)
         check_tag_validity(album)
     if not msgs.errors:
-        if args.dest:
-            album.new_path = get_new_path(album)
+        check_new_path(album)
         album.old_files = OrderedDict()
         album.new_files = {}
         check_and_prepare_audio_files(album)
