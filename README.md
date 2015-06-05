@@ -418,6 +418,15 @@ Python.NoConFile="C:\Tools\Python34\pyw.exe" "%1" %*
 
 #### dBpoweramp CD Ripper - My Setup
 
+Configuration steps:
+* Define profiles
+* Set up **ID Tag Processing** DSP
+* Set up **ReplayGain** DSP
+* Set up **CUE Sheet - Multiple Files** DSP
+* Set up two instances of the **Run External** DSP
+* Configure tags selection
+* Configure audio extraction log naming
+
 I have two CD Ripper profiles defined, **Pop/Rock** and **Classical**. These
 are identical except for the **Naming** value, defining where ripped files are
 stored. Both profiles rip FLAC files to **D:\CDRip**. These profile names are
@@ -456,7 +465,7 @@ Classical\Beethoven, Ludwig van\Beethoven Symphonies Nos. 5 & 6 'Pastorale' - Ka
 Classical\Compilations\Horowitz in Moscow - Horowitz (1986)\13 Traumerei (Schumann - Horowitz).flac
 ```
 
-My naming scheme for classical CDs requires the existence of three user-defined
+My naming scheme for classical CDs depends on three user-defined
 tags which are used to limit the length of file paths. **CheckFlacTags** and
 **RearrangeAudioFiles** will issue errors if these do not exist, and I've
 configured an mp3tag action to generate these tags from the associated sort
@@ -478,7 +487,10 @@ index values defined on a CD, making those available via internal hidden tags
 
 Next, in the DSP tab at the bottom of CD Ripper, add the **ID Tag Processing**
 DSP, and bring up its settings dialog. On the Map tab, add two mappings, from
-**_cdgap** to **CDGAP**, and from **_cdindex** to **CDIndex**.
+**_cdgap** to **CDGap**, and from **_cdindex** to **CDIndex**. You might need to
+first install the **DSP Effects** package from
+[here](https://www.dbpoweramp.com/dbpoweramp-dsp.htm). Be sure to add this DSP
+to all your profiles.
 
 I populate these two user-defined tags because I'm trying to record as much info
 from a ripped CD as reasonable. If I want to reburn a CD in the future, I'll
@@ -489,8 +501,126 @@ Ripper will usually correct that, and then I have to delete and re-rip. I try
 to glance at the Gap column in CD Ripper's display before hitting Rip, so I
 notice the missing info and refresh before ripping.
 
-#### dBpoweramp CD Ripper - Script Integration
+I've got a few other DSPs enabled in CD Ripper. Again in the DSP tab, add the
+**ReplayGain** DSP, bring up its settings dialog, and choose **Track & Album
+Gain** in the **Write** selection list. I also install the **CUE Sheet -
+Multiple Files** DSP, with **UTF-8 Encoding** enabled in its settings. You can
+install that DSP according to the instructions in the dBpoweramp forums
+[here](https://forum.dbpoweramp.com/showthread.php?18981-CUE-Sheet-Image-Utility-Codec).
+
+Next, two instances of the **Run External** DSP need to be added to invoke the
+scripts automatically during ripping. Add the first instance of **Run
+External**, bring up its settings dialog, and make the following entries:
+
+* **Run**: set to **After Conversion**
+* **Program**: Press **Set** and type **%comspec%** for the **File name**. This
+  will set the Program to cmd.exe.
+* **Command Line**: Set to the following, changing the paths to **python3.exe**
+  and **LogRippedTrack.py** as appropriate:
+
+```
+/c C:\Tools\Python34\python3.exe C:\Tools\Scripts\dBpa\LogRippedTrack.py "[IFVALUE]album artist,[album artist],[IFCOMP]Various Artists[][IF!COMP][artist][][] - [album][IFMULTI] (Disc [disc])[].cue" "[TRIMLASTFOLDER][outfilelong][]\"
+```
+
+Add the second instance of the **Run External** DSP, making the following
+entries into its settings:
+
+* **Run**: Set to **After Batch**
+* **Program**: Press **Set** and type **%comspec%** for the **File name**. This
+* **Command Line**: Set to the following, changing the paths to **python3.exe**
+  and **PostRipProcess.py** as appropriate:
+
+```
+/c C:\Tools\Python34\python3.exe c:\tools\scripts\dBpa\PostRipProcess.py
+```
+
+Make sure you add these 5 DSPs to both the **Classical** and the **Pop/Rock**
+profiles.
+
+I enable the audio extraction log for each rip. In CD Ripper, select
+**Options** , then enable **Secure** under the Ripping Method, and bring up the
+**Secure Settings** dialog. At the bottom, you'll see the **Secure Extraction
+Log** section. Enable both **Write To File** and **Add To Information Log**.
+Then set the **Log Filename** path to:
+
+```
+[rippedtopath]\[IFVALUE]album artist,[album artist],[IFCOMP]Various Artists[][IF!COMP][artist][][] - [album][IFMULTI] (Disc [disc])[].txt
+```
+
+Finally, tell CD Ripper to write every tag it knows about. Select **Options**,
+then in the **Meta Data** section, select **Options** for **Meta Data & ID
+Tag**. Scroll down to the **Write ID Tags** section of the resulting dialog, and
+enable every tag there (currently, those go from **AccurateRip Result** to
+**HDCD**). I also enable **Force no date on year**, so the date I add to the
+album folder names is just the 4-digit year.
+
+CD Ripper should now be configured for interacting with the **CheckFlacTags**
+script automatically.
 
 #### mp3tag
+
+I add three external tools to mp3tag to invoke **CheckFlacTags.py** and
+**RearrangeAudioFiles.py** from within the program. Select **Tools** from the
+menu bar, then **Tools** in the **Mp3tag Option** dialog. Click **New** (the
+button with the star) to add each of these three external tools:
+
+Tool #1 (invoked with Ctrl-1):
+* **Name**: Set to **CheckFlacTags**
+* **Path**: Path to **python3.exe** (C:\Tools\Python34\python3.exe in my case)
+* **Parameter**: Set to **C:\Tools\Scripts\dBpa\CheckFlacTags.py -pSv "$cutRight(%_folderpath%,1)"**
+
+Tool #2 (invoked with Ctrl-2):
+* **Name**: Set to **Rename files in-place (preview)**
+* **Path**: Path to **python3.exe** (C:\Tools\Python34\python3.exe in my case)
+* **Parameter**: Set to **C:\Tools\Scripts\dBpa\RearrangeAudioFiles.py -p -n "$cutRight(%_folderpath%,1)"**
+
+Tool #3 (invoked with Ctrl-3):
+* **Name**: Set to **Rename files in-place**
+* **Path**: Path to **python3.exe** (C:\Tools\Python34\python3.exe in my case)
+* **Parameter**: Set to **C:\Tools\Scripts\dBpa\RearrangeAudioFiles.py -p -vv "$cutRight(%_folderpath%,1)"**
+
+Replace the paths to python3.exe and the scripts as appropriate for your
+installation.
+
+I also define a couple action groups to make it easier to define the tags that
+**CheckFlacTags** will be looking for:
+
+The first action group, **Artist to ArtistSort**, is useful when the ArtistSort
+tag is missing. It guesses the appropriate name for the sort tag by rearranging
+the artist tag, for instance, rearranging 'Jane Doe [Violin]' to 'Doe, Jane
+[Violin]'.
+
+* **Name of action group**: Set to **A&rtist to ArtistSort**
+* **Action 1**: 
+  * **Action type**: Set to **Format value**
+  * **Field**: Set to **ARTIST SORT**
+  * **Format string**: Set to **$meta_sep(ARTIST,'|')**
+* **Action 2**: 
+  * **Action type**: Set to **Replace with regular expression**
+  * **Regular expression**: Set to **([^[|]+)\s+([^[| ]+)(\s+\\[[^|]*])?**
+  * **Replace matches with:**: Set to **$2, $1$3**
+* **Action 3**:
+  * **Action type**: Set to **Split field by separator**
+  * **Field**: Set to **ARTIST SORT**
+  * **Separator**: Set to **|**
+
+The second action group, **Add terse fields**, creates the user-defined tags
+that I use in the pathnames of classical music tracks from the associated 'sort'
+tags, as mentioned earlier. It works by copying everything from the matching
+'sort' tag into the 'terse' tag, up to but not including the first comma.
+
+* **Name of action group**: Set to **&Add &terse fields**
+* **Action 1**:
+  * **Action type**: Set to **Format value**
+  * **Field**: Set to **ALBUMARTISTTERSE**
+  * **Format string**: Set to **$regexp(%album artist sort%,^(.\*)','.*,$1)**
+* **Action 2**:
+  * **Action type**: Set to **Format value**
+  * **Field**: Set to **ARTISTTERSE**
+  * **Format string**: Set to **$regexp(%artist sort%,^(.\*)','.*,$1)**
+* **Action 3**:
+  * **Action type**: Set to **Format value**
+  * **Field**: Set to **COMPOSERTERSE**
+  * **Format string**: Set to **$regexp(%composersort%,^(.\*)','.*,$1)**
 
 <!-- vim: set tw=80: -->
