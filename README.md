@@ -11,8 +11,8 @@ This repo hosts a group of Python 3.4 scripts I've written which let me
 streamline my workflow and catch mistakes made while processing CDs.
 
 These scripts are intended to be run from the command line on Windows, as well
-as be integrated into CD Ripper and mp3tag via those programs ability to invoke
-external programs.
+as be integrated into CD Ripper and mp3tag via those programs' abilities to
+invoke external programs.
 
 The scripts enforce my particular tag and naming scheme, so they'll probably
 need some editing for use elsewhere.
@@ -340,9 +340,9 @@ optional arguments:
 ```
 
 **FindLongPaths** is a simple utility which I find useful for working with
-extremely long pathnames, as commonly happens with classical CDs.  It just walks
-the tree from a root directory and shows every path whose length exceeds a limit
-(defaulting to 250).  I use it when dealing with long paths, to know when I
+extremely long pathnames, as commonly happens with classical CDs. It just walks
+the tree from a root and shows every path whose length exceeds a limit
+(defaulting to 250). I use it when dealing with long paths, to know when I
 might need to tweak some track or folder titles to keep path lengths reasonable.
 
 Note that **RearrangeAudioFiles** has its own ability to warn about long paths.
@@ -352,29 +352,145 @@ options to see if moving albums to a new location might run into problems.
 #### PostRipProcess.py and LogRippedTrack.py
 
 **PostRipProcess** is meant to be invoked by CD Ripper upon completing a disc
-rip.  It mostly exists to invoke **CheckFlacTags** on the just-ripped album
+rip. It mostly exists to invoke **CheckFlacTags** on the just-ripped album
 folder, for a quick look at the results. Sometimes, when things are really off,
 it's better to just delete and rerip than try to fix things in mp3tag.
 
-The script also works around a limitation of CD Ripper.  My workflow includes
+The script also works around a limitation of CD Ripper. My workflow includes
 creating a multi-track cuesheet, which I want to name the same as the audio
-extraction log.  But while CD Ripper allows you to control the log file's name,
-it always uses 'cuesheet.cue' for the cuesheet.  That's insufficient, especially
+extraction log. But while CD Ripper allows you to control the log file's name,
+it always uses 'cuesheet.cue' for the cuesheet. That's insufficient, especially
 when storing multi-disc CD sets in the same album folder (as I do).
 **PostRipProcess** renames the cuesheet appropriately as one of its tasks.
 
 There is another complication of CD Ripper to be worked around. While you can
 use the **Run External** DSP to run something after a disc is ripped, that
-script can't be passed any dynamic information.  To work around that, I have CD
+script can't be passed any dynamic information. To work around that, I have CD
 Ripper invoke **LogRippedTrack** using another **Run External** DSP after every
-track is ripped.  Dynamic arguments can be passed at that time, so
+track is ripped. Dynamic arguments can be passed at that time, so
 **LogRippedTrack** just saves some information away for **PostRipProcess** to
 find.
 
-One more thing - these scripts insist on being invoked by CD Ripper.  That's
+One more thing - these scripts insist on being invoked by CD Ripper. That's
 because they're made to handle ripping more than one CD at a time, using
-multiple CD drives and multiple instances of CD Ripper.  **LogRippedTrack** and
+multiple CD drives and multiple instances of CD Ripper. **LogRippedTrack** and
 **PostRipProcess** communicate via a temporary file whose name depends on the
 process ID of the CD Ripper instance invoking the scripts.
+
+---
+
+### Configuration
+
+There's a lot of configuration involved in getting these scripts to work. The
+following describes my setup. The scripts are hard-wired to match some of these
+settings, so it'll help to know what my setup looks like if you want to
+personalize the scripts.
+
+#### Python
+
+I'm using
+[ActiveState's ActivePython](http://www.activestate.com/activepython/downloads),
+version 3.4.1.0. I use Python 3 instead of the more common Python 2 because I
+found it easier to work with Unicode data using Python 3 (classical and Celtic
+CDs use a lot of accented characters).
+
+You'll need to install the **mutagen** module, which is used to read the tags in
+FLAC files. Using the Python3 version of pypm, run **pypm install mutagen**.
+
+The scripts use a shell-bang comment of **#! python3** as the first line to make
+sure Python 3 is used instead of Python 2 when invoking the script directly
+(e.g. running **CheckFlacTags** at the command line instead of **python3
+CheckFlacTags.py**). That shebang depends on the correct associations for
+the Python extensions, which should look something like these:
+
+```
+C:\Tools\Scripts\dBpa>assoc | findstr /i python
+.py=Python.File
+.pyc=Python.CompiledFile
+.pyo=Python.CompiledFile
+.pyw=Python.NoConFile
+
+C:\Tools\Scripts\dBpa>ftype | findstr /i python
+Python.CompiledFile="C:\Tools\Python34\py.exe" "%1" %*
+Python.File="C:\Tools\Python34\py.exe" "%1" %*
+Python.NoConFile="C:\Tools\Python34\pyw.exe" "%1" %*
+```
+
+#### dBpoweramp CD Ripper - My Setup
+
+I have two CD Ripper profiles defined, **Pop/Rock** and **Classical**. These
+are identical except for the **Naming** value, defining where ripped files are
+stored. Both profiles rip FLAC files to **D:\CDRip**. These profile names are
+hard-wired into **RearrangeAudioFiles.py**. The **Classical** profile name is
+hard-wired into **CheckFlacTags.py**.
+
+The **Pop/Rock** profile has the following **Naming** value:
+
+```
+[IFVALUE]album artist,[album artist],[IFCOMP]Various Artists[][IF!COMP][artist][][]\[album] ([year])\[IFMULTI]Disc [disc] - [][track] [title] ([artist])
+```
+
+The **Classical** profile uses this (ridiculously long) **Naming** setting:
+
+```
+Classical\[IFVALUE]compilation,Compilations,[IFVALUE]composersort,[tag]composersort[],[composer][][]\[album][IFVALUE]albumartistterse, - [tag]AlbumArtistTerse[],[IFVALUE]album artist, - [album artist],[][] ([year])\[IFMULTI]Disc [disc] - [][track] [title] ([IFVALUE]composerterse,[tag]composerterse[],[composer][] - [IFVALUE]artistterse,[tag]artistterse[],[artist][])
+```
+
+Both of these values are written to create reasonable paths even before the tags
+have been cleaned up after a rip. When all the proper tags exist, though, as
+checked by **CheckFlacTags** and required by **RearrangeAudioFiles**, the
+effective paths are simpler:
+
+```
+Pop/Rock profile:
+[album artist]\[album] ([year])\[IFMULTI]Disc [disc] - [][track] [title] ([artist])
+Examples:
+Dire Straits\Love Over Gold (1982)\01 Telegraph Road (Dire Straits).flac
+Peter Gabriel\Scratch My Back (2010)\Disc 1 - 01 Heroes (Peter Gabriel).flac
+Various Artists\For the Kids (2002)\07 The Hoppity Song (John Ondrasik of Five For Fighting).flac
+
+Classical profile:
+Classical\[IFVALUE]compilation,Compilations,[tag]composersort[][]\[album] - [tag]AlbumArtistTerse[] ([year])\[IFMULTI]Disc [disc] - [][track] [title] ([tag]composerterse[] - [tag]artistterse[])
+Examples:
+Classical\Beethoven, Ludwig van\Beethoven Symphonies Nos. 5 & 6 'Pastorale' - Karajan-Berlin Phil. (1982)\03 Symphony No. 5; 3. Allegro (Beethoven - Karajan).flac
+Classical\Compilations\Horowitz in Moscow - Horowitz (1986)\13 Traumerei (Schumann - Horowitz).flac
+```
+
+My naming scheme for classical CDs requires the existence of three user-defined
+tags which are used to limit the length of file paths. **CheckFlacTags** and
+**RearrangeAudioFiles** will issue errors if these do not exist, and I've
+configured an mp3tag action to generate these tags from the associated sort
+tags.
+
+* **ArtistTerse**: A short version of the **Artist Sort** tag (e.g. **Horowitz**
+  for **Horowitz, Vladimir**).
+* **AlbumArtistTerse**: A short version of the **Album Artist Sort** tag (e.g.
+  **Serkin/Ozawa/BSO** for **Serkin, Rudolf - Ozawa, Seiji - Boston Symphony**)
+* **ComposerTerse**: A short version of the **ComposerSort** tag (e.g.
+  **Beethoven** for **Beethoven, Ludwig van**).
+
+There are two other user-defined tags which are required in all tracks,
+**CDGap** and **CDIndex**. These expose hidden functionality in CD Ripper.
+First, you must enable the **Gap (Pre-Track)** and **Index Positions** columns
+in CD Ripper. When these columns are shown, CD Ripper will detect the gaps and
+index values defined on a CD, making those available via internal hidden tags
+**_cdgap** and **_cdindex**.
+
+Next, in the DSP tab at the bottom of CD Ripper, add the **ID Tag Processing**
+DSP, and bring up its settings dialog. On the Map tab, add two mappings, from
+**_cdgap** to **CDGAP**, and from **_cdindex** to **CDIndex**.
+
+I populate these two user-defined tags because I'm trying to record as much info
+from a ripped CD as reasonable. If I want to reburn a CD in the future, I'll
+need the gap and index info to make a faithful copy. Note: the CD gap/index
+functionality is a little flaky. **CheckFlacTags** will sometimes complain
+about missing **CDGap** and **CDIndex** tags after a rip. Hitting Refresh in CD
+Ripper will usually correct that, and then I have to delete and re-rip. I try
+to glance at the Gap column in CD Ripper's display before hitting Rip, so I
+notice the missing info and refresh before ripping.
+
+#### dBpoweramp CD Ripper - Script Integration
+
+#### mp3tag
 
 <!-- vim: set tw=80: -->
