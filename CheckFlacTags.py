@@ -36,6 +36,7 @@ TagKind = enum('Required', 'ReqClassical', 'Optional', 'Mapped')
 TagQual = enum('AllSame', 'DiscSame', 'AllDiff', 'Ignored')
 
 known_tags = {
+    # Tag name                Kind                  Qualifier         Multivalued
     'accurateripdiscid':     (TagKind.Required,     TagQual.AllDiff,  False),
     'accurateripresult':     (TagKind.Required,     TagQual.Ignored,  False),
     'album':                 (TagKind.Required,     TagQual.AllSame,  False),
@@ -114,6 +115,16 @@ mapped_tags = {
     'totaldiscs':   'disctotal',
     'totaltracks':  'tracktotal',
 }
+
+sorted_tags = {
+    'artist':      'artist sort',
+    'albumartist': 'album artist sort',
+    'composer':    'composersort',
+    'conductor':   'conductorsort',
+    'soloists':    'soloistssort',
+}
+
+test_leading_The_tags = ['artist', 'albumartist', 'composer']
 
 default_path = 'D:\\CDRip'
 
@@ -491,26 +502,28 @@ def check_sort_tags(disc):
     # either 'John Smith' or 'Smith, John', and the second either 'Jane Doe' or
     # 'Doe, Jane'.  Also warn if the sorted tag is missing on some, but not all,
     # tracks (warn on missing everywhere under cmdline option).
-    def check_tag_pair(disc, tag1, tag2):
-        if (tag2 not in disc.tagset and
+    if not args.sort_tag_mismatch:
+        return
+    for tag, sort_tag in sorted_tags.items():
+        if (sort_tag not in disc.tagset and
                 not args.no_sort_tag and
                 not disc.classical):
             return
         missing = []
         mismatch = defaultdict(list)
         for tracknum, track in disc.items():
-            if tag1 not in track.tagset and tag2 not in track.tagset:
+            if tag not in track.tagset and sort_tag not in track.tagset:
                 continue    # ignore if both tags not present
-            len1 = len(track[tag1])
-            if tag2 not in track.tagset:
+            len1 = len(track[tag])
+            if sort_tag not in track.tagset:
                 missing.append(tracknum)
                 continue
-            tag1_val = track.get(tag1, [])
-            tag2_val = track[tag2]
-            if len(tag1_val) == len(tag2_val):
+            tag_val = track.get(tag, [])
+            sort_tag_val = track[sort_tag]
+            if len(tag_val) == len(sort_tag_val):
                 # Both tags have the same number of values.  Pair up the values
                 # and compare them.
-                for val1, val2 in zip(tag1_val, tag2_val):
+                for val1, val2 in zip(tag_val, sort_tag_val):
                     if val1 == val2:
                         continue
 
@@ -544,25 +557,17 @@ def check_sort_tags(disc):
                     continue
             # Tags either have different numbers of values, or those values
             # couldn't be matched.
-            key = (flatten_tag(tag1_val), flatten_tag(tag2_val))
+            key = (flatten_tag(tag_val), flatten_tag(sort_tag_val))
             mismatch[key].append(tracknum)
         if missing or mismatch:
-            msgs.error("Incompatible values for tags '%s' and '%s':" % (tag1, tag2))
+            msgs.error("Incompatible values for tags '%s' and '%s':" % (tag, sort_tag))
             errmsgs = []
             if missing:
-                errmsgs.append((sorted(missing), "Tag '%s' not found" % tag2))
+                errmsgs.append((sorted(missing), "Tag '%s' not found" % sort_tag))
             for vals, tracks in mismatch.items():
                 errmsgs.append((sorted(tracks), "'%s' versus '%s'" % vals))
             for tracks, msg in sorted(errmsgs):
                 msgs.error("  %s: %s" % (track_list(tracks, len(disc)), msg))
-
-    if not args.sort_tag_mismatch:
-        return
-    check_tag_pair(disc, 'artist', 'artist sort')
-    check_tag_pair(disc, 'albumartist', 'album artist sort')
-    check_tag_pair(disc, 'composer', 'composersort')
-    check_tag_pair(disc, 'conductor', 'conductorsort')
-    check_tag_pair(disc, 'soloists', 'soloistssort')
 
 
 def check_dups_in_tags(disc):
@@ -590,26 +595,16 @@ def check_leading_the(disc):
             error_value = ({tag}, tracks)
         error_items[tag_value] = error_value
 
-    def check_leading_the_in_tag(tag):
+    for tag in test_leading_The_tags:
         if tag in disc.identical:
-            tag_list = disc.identical[tag]
-            if not isinstance(tag_list, list):
-                tag_list = [tag_list]
-            for tag_value in tag_list:
+            for tag_value in disc.identical[tag]:
                 if tag_value[0:4].lower() == 'the ':
                     record_error_item(tag, tag_value, set(disc))
         else:
             for tracknum in disc:
-                tag_list = disc[tracknum].get(tag, '')
-                if not isinstance(tag_list, list):
-                    tag_list = [tag_list]
-                for tag_value in tag_list:
+                for tag_value in disc[tracknum].get(tag, ''):
                     if tag_value[0:4].lower() == 'the ':
                         record_error_item(tag, tag_value, {tracknum})
-
-    check_leading_the_in_tag('artist')
-    check_leading_the_in_tag('albumartist')
-    check_leading_the_in_tag('composer')
     for tag_value, error_tuple in error_items.items():
         fmt_tracks = track_list(sorted(error_tuple[1]), len(disc)).lower()
         msgs.error("'%s' should be '%s': tag%s '%s' in %s" %

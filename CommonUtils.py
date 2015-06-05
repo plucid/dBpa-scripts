@@ -172,8 +172,6 @@ def get_album(album_path):
         else:
             msgs.error("Track '%s': same disc/track # as previous track, ignored" % track.file)
             continue
-#        if len(album_path) + len(trackfile) + 1 > 260:
-#            msgs.error("Path too long: %s" % os.path.join(album_path, trackfile))
     for disc in album.values():
         for track in disc.values():
             disc.tagset |= track.tagset
