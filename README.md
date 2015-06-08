@@ -416,7 +416,7 @@ Python.File="C:\Tools\Python34\py.exe" "%1" %*
 Python.NoConFile="C:\Tools\Python34\pyw.exe" "%1" %*
 ```
 
-#### dBpoweramp CD Ripper - My Setup
+#### dBpoweramp CD Ripper
 
 Configuration steps:
 * Define profiles
@@ -590,16 +590,16 @@ tag is missing. It guesses the appropriate name for the sort tag by rearranging
 the artist tag, for instance, rearranging 'Jane Doe [Violin]' to 'Doe, Jane
 [Violin]'.
 
-* **Name of action group**: Set to **A&rtist to ArtistSort**
-* **Action 1**: 
+* Name of action group: Set to **A&rtist to ArtistSort**
+* Action 1: 
   * **Action type**: Set to **Format value**
   * **Field**: Set to **ARTIST SORT**
   * **Format string**: Set to **$meta_sep(ARTIST,'|')**
-* **Action 2**: 
+* Action 2: 
   * **Action type**: Set to **Replace with regular expression**
   * **Regular expression**: Set to **([^[|]+)\s+([^[| ]+)(\s+\\[[^|]*])?**
   * **Replace matches with:**: Set to **$2, $1$3**
-* **Action 3**:
+* Action 3:
   * **Action type**: Set to **Split field by separator**
   * **Field**: Set to **ARTIST SORT**
   * **Separator**: Set to **|**
@@ -609,16 +609,16 @@ that I use in the pathnames of classical music tracks from the associated 'sort'
 tags, as mentioned earlier. It works by copying everything from the matching
 'sort' tag into the 'terse' tag, up to but not including the first comma.
 
-* **Name of action group**: Set to **&Add &terse fields**
-* **Action 1**:
+* Name of action group: Set to **&Add &terse fields**
+* Action 1:
   * **Action type**: Set to **Format value**
   * **Field**: Set to **ALBUMARTISTTERSE**
   * **Format string**: Set to **$regexp(%album artist sort%,^(.\*)','.*,$1)**
-* **Action 2**:
+* Action 2:
   * **Action type**: Set to **Format value**
   * **Field**: Set to **ARTISTTERSE**
   * **Format string**: Set to **$regexp(%artist sort%,^(.\*)','.*,$1)**
-* **Action 3**:
+* Action 3:
   * **Action type**: Set to **Format value**
   * **Field**: Set to **COMPOSERTERSE**
   * **Format string**: Set to **$regexp(%composersort%,^(.\*)','.*,$1)**
