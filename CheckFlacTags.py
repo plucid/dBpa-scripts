@@ -579,7 +579,7 @@ def check_dups_in_tags(disc):
                 tag_value_set = set(tag_value)
                 if len(tag_value) != len(tag_value_set):
                     msgs.error("Track %d has duplicate value in tag '%s': %s" %
-                                (tracknum, tag, ', '.join(tag_value)))
+                                (tracknum, tag, '; '.join(tag_value)))
 
 
 def check_leading_the(disc):
