@@ -353,10 +353,12 @@ def handle_mapped_tags(disc):
                 mismatch.append(msg_helper('!=', mismatch_tracks))
     if added:
         msgs.error('Obsolete tags need updating:')
-        msgs.extend(sorted(added))
+        for msg in sorted(added):
+            msgs.error(msg)
     if mismatch:
         msgs.error('Obsolete and updated tags both present with different values:')
-        msgs.extend(sorted(mismatch))
+        for msg in sorted(mismatch):
+            msgs.error(msg)
 
 
 def check_profile(disc):
