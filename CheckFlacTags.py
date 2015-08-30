@@ -73,6 +73,8 @@ known_tags = {
     'label':                 (TagKind.Required,     TagQual.AllSame,  False),
     'length':                (TagKind.Required,     TagQual.Ignored,  False),
     'mbid':                  (TagKind.Optional,     TagQual.Ignored,  False),
+    'nocompilationtest':     (TagKind.Optional,     TagQual.DiscSame, False),
+    'nomultipleartisttest':  (TagKind.Optional,     TagQual.DiscSame, False),
     'orchestra':             (TagKind.Optional,     TagQual.Ignored,  False),
     'organization':          (TagKind.Mapped,       TagQual.AllSame,  False),
     'performer':             (TagKind.Optional,     TagQual.Ignored,  False),
@@ -413,10 +415,7 @@ def check_unknown_tags(disc):
     if not unknown_tags:
         return
     msgs.error('Unknown Tags:')
-    common_track_tags = disc.tagset.copy()
-    for track in disc.values():
-        common_track_tags &= track.tagset
-    disc_unknown_tags = unknown_tags & common_track_tags
+    disc_unknown_tags = unknown_tags & disc.common
     if disc_unknown_tags:
         msgs.error('  All tracks: %s' % ', '.join(sorted(disc_unknown_tags)))
     tracks_unknown_tags_set = unknown_tags - disc_unknown_tags
@@ -508,7 +507,7 @@ def check_sort_tags(disc):
         if (sort_tag not in disc.tagset and
                 not args.no_sort_tag and
                 not disc.classical):
-            return
+            continue
         missing = []
         mismatch = defaultdict(list)
         for tracknum, track in disc.items():
@@ -618,11 +617,13 @@ def check_multiple_artists(disc):
     # If the 'artist' tag isn't identical across tracks and the 'albumartist'
     # tag isn't found in each track's 'artist' tag, then make sure the
     # 'albumartist' tag is either 'Soundtrack', 'Various Artists', or 'TV Theme'
-    # depending on the 'genre' tag. Not done for classical profile.
+    # depending on the 'genre' tag. Not done for classical profile, or if the
+    # tag 'NoMultipleArtistTest' is found in all tracks.
     if (disc.classical or
         'artist' in disc.identical or
         'albumartist' not in disc.identical or
-        'genre' not in disc.identical):
+        'genre' not in disc.identical or
+        'nomultipleartisttest' in disc.common):
         return
     album_artist = flatten_tag(disc.identical['albumartist'])
     album_artist_low = album_artist.lower()
@@ -644,7 +645,10 @@ def check_compilation(disc):
     # * If genre is 'Soundtrack', make sure the AlbumArtist is also 'Soundtrack'
     # * For other genres, make sure the AlbumArtist is either 'Various Artists' or
     #   'TV Theme'
+    # The test is ignored if a tag 'NoCompilationTest' exists in all tracks.
     if 'compilation' not in disc.tagset:
+        return
+    if 'nocompilationtest' in disc.common:
         return
     if disc.classical:
         if 'composer' in disc.identical:
@@ -726,6 +730,7 @@ def process_album(album_path):
         disc_count += 1
         track_count += len(disc)
         handle_mapped_tags(disc)
+        find_common_disc_tags(disc)
         find_identical_disc_tags(disc)
         check_profile(disc)
         check_inaccurate_rips(disc)
